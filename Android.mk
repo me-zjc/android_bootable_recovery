@@ -783,4 +783,8 @@ endif
 
 endif
 
+# hello_cmd
+TWRP_REQUIRED_MODULES += hello_cmd
+include $(commands_TWRP_local_path)/hello_cmd/Android.mk
+
 commands_TWRP_local_path :=

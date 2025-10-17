@@ -413,6 +413,7 @@ ifneq ($(TW_EXCLUDE_BASH), true)
 endif
 
 RECOVERY_BINARY_SOURCE_FILES += $(TARGET_OUT_EXECUTABLES)/hello_cmd
+RECOVERY_BINARY_SOURCE_FILES += $(TARGET_OUT_EXECUTABLES)/twrp_screencap
 
 include $(CLEAR_VARS)
 LOCAL_MODULE := relink_libraries

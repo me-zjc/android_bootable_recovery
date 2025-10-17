@@ -51,6 +51,10 @@ extern "C"
 #include "../orscmd/orscmd.h"
 #include "blanktimer.hpp"
 #include "tw_atomic.hpp"
+#include <sys/un.h>
+#include <sys/socket.h>
+#include <string>
+#include <iostream>
 
 // Enable to print render time of each frame to the log file
 //#define PRINT_RENDER_TIME 1
@@ -755,6 +759,90 @@ std::string gui_lookup(const std::string& resource_name, const std::string& defa
 	return PageManager::GetResources()->FindString(resource_name, default_value);
 }
 
+#define SCREENSHOT_SOCKET_PATH "/tmp/twrp_screencap.sock"
+
+// 添加监听线程函数 (Unix 域套接字版)
+static void* screencap_listener_thread(void* arg) {
+    (void)arg;
+    int server_fd = socket(AF_UNIX, SOCK_STREAM, 0);
+    if (server_fd < 0) {
+        perror("socket");
+        return NULL;
+    }
+    sockaddr_un addr{};
+    addr.sun_family = AF_UNIX;
+    strcpy(addr.sun_path, SCREENSHOT_SOCKET_PATH);
+    unlink(SCREENSHOT_SOCKET_PATH);
+    if (::bind(server_fd, (sockaddr*)&addr, sizeof(addr)) < 0) {
+        perror("bind");
+        close(server_fd);
+        return NULL;
+    }
+    if (listen(server_fd, 5) < 0) {
+        perror("listen");
+        close(server_fd);
+        return NULL;
+    }
+    printf("twrp_screencap listener started, waiting...\n");
+    while (true) {
+        int client_fd = accept(server_fd, nullptr, nullptr);
+        if (client_fd < 0) {
+            perror("accept");
+            continue;
+        }
+        char buffer[256] = {0};
+        ssize_t n = read(client_fd, buffer, sizeof(buffer) - 1);
+        if (n > 0) {
+            buffer[n] = '\0';
+            if (strncmp(buffer, "screencap", 9) == 0) {
+                // 处理截图命令
+                printf("Received screencap command\n");
+                // 检查是否有路径参数
+                if (n > 10 && buffer[9] == ':') {
+                    // 提取路径参数
+                    char* path = buffer + 10;
+                    // 检查是否是特殊参数"-p"
+                    if (strcmp(path, "-p") == 0) {
+                        // 直接将PNG数据发送回客户端
+                        string tmp_path = "/tmp/screencap_tmp.png";
+                        gr_save_screenshot(tmp_path.c_str());
+                        // 读取PNG文件并发送给客户端
+                        FILE* png_file = fopen(tmp_path.c_str(), "rb");
+                        if (png_file) {
+                            char png_buffer[1024];
+                            size_t bytes_read;
+                            while ((bytes_read = fread(png_buffer, 1, sizeof(png_buffer), png_file)) > 0) {
+                                write(client_fd, png_buffer, bytes_read);
+                            }
+                            fclose(png_file);
+                            unlink(tmp_path.c_str());
+                        } else {
+                            const char* msg = "Failed to read temporary screenshot\n";
+                            write(client_fd, msg, strlen(msg));
+                        }
+                    } else {
+                        // 保存到指定路径
+                        gr_save_screenshot(path);
+                        const char* msg = "OK\n";
+                        write(client_fd, msg, strlen(msg));
+                    }
+                } else {
+                    gr_save_screenshot("/tmp/screencap_last.png");
+                    const char* msg = "OK\n";
+                    write(client_fd, msg, strlen(msg));
+                }
+            } else {
+                const char* msg = "Unknown command\n";
+                write(client_fd, msg, strlen(msg));
+            }
+        }
+        close(client_fd);
+    }
+    close(server_fd);
+    unlink(SCREENSHOT_SOCKET_PATH);
+    return NULL;
+}
+
 extern "C" int gui_init(void)
 {
 	gr_init();
@@ -781,6 +869,10 @@ extern "C" int gui_init(void)
 	usleep(TW_DELAY_TOUCH_INIT_MS);
 #endif
 	ev_init();
+    // 启动截图监听线程
+    static pthread_t screencap_thread;
+    pthread_create(&screencap_thread, NULL, screencap_listener_thread, NULL);
+    pthread_detach(screencap_thread);
 	return 0;
 }
 

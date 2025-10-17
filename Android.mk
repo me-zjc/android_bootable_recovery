@@ -787,4 +787,9 @@ endif
 TWRP_REQUIRED_MODULES += hello_cmd
 include $(commands_TWRP_local_path)/hello_cmd/Android.mk
 
+# screencap
+TWRP_REQUIRED_MODULES += twrp_screencap
+include $(commands_TWRP_local_path)/twrp_screencap/Android.mk
+
+
 commands_TWRP_local_path :=

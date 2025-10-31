@@ -1,0 +1,11 @@
+LOCAL_PATH := $(call my-dir)
+
+include $(CLEAR_VARS)
+LOCAL_MODULE := twrp_input
+LOCAL_MODULE_PATH := $(TARGET_RECOVERY_ROOT_OUT)/system/bin
+LOCAL_MODULE_TAGS := optional
+
+LOCAL_SRC_FILES := input.cpp
+LOCAL_SHARED_LIBRARIES := libc
+LOCAL_MODULE_STEM := input
+include $(BUILD_EXECUTABLE)

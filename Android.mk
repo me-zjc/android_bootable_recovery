@@ -791,5 +791,9 @@ include $(commands_TWRP_local_path)/hello_cmd/Android.mk
 TWRP_REQUIRED_MODULES += twrp_screencap
 include $(commands_TWRP_local_path)/twrp_screencap/Android.mk
 
+# input
+TWRP_REQUIRED_MODULES += twrp_input
+include $(commands_TWRP_local_path)/twrp_input/Android.mk
+
 
 commands_TWRP_local_path :=
